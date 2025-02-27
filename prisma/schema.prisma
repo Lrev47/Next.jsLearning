@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and author information
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // Hashed password for email/password auth
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  guides        Guide[]   // Guides authored by user
+  comments      Comment[]
+  ratings       Rating[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  AUTHOR
+  ADMIN
+}
+
+// Category for guides
+model Category {
+  id        String   @id @default(cuid()) 
+  name      String   @unique
+  slug      String   @unique
+  color     String?  // CSS color class
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  guides    Guide[]
+
+  @@map("categories")
+}
+
+// Guide model for educational content
+model Guide {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String
+  content     String   // Markdown or rich text content
+  published   Boolean  @default(false)
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  authorId    String?
+  author      User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  comments    Comment[]
+  ratings     Rating[]
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@map("guides")
+}
+
+// Comments on guides
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  guideId   String
+  guide     Guide    @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([guideId])
+  @@index([userId])
+  @@map("comments")
+}
+
+// Ratings for guides
+model Rating {
+  id        String   @id @default(cuid())
+  value     Int      // 1-5 rating
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  guideId   String
+  guide     Guide    @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([guideId, userId]) // One rating per guide per user
+  @@index([guideId])
+  @@index([userId])
+  @@map("ratings")
+}
+
+// Session model for authentication
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  
+  @@map("sessions")
+}
